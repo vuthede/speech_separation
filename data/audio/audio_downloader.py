@@ -5,6 +5,9 @@ import sys
 sys.path.append("../lib")
 import AVHandler as avh
 import pandas as pd
+import multiprocessing
+from multiprocessing import Process
+
 
 def m_link(youtube_id):
     # return the youtube actual link
@@ -20,17 +23,37 @@ def m_audio(loc,name,cat,start_idx,end_idx):
     # end_idx   | the ending index of the audio to download and concatenate
 
     for i in range(start_idx,end_idx):
-        f_name = name+str(i)
+        #f_name = name+str(i)
+        f_name = f'{name}_{cat.loc[i, "link"]}_{i}' # auio_train_id_indexofaudio
         link = m_link(cat.loc[i,'link'])
         start_time = cat.loc[i,'start_time']
         end_time = start_time + 3.0
         avh.download(loc,f_name,link)
         avh.cut(loc,f_name,start_time,end_time)
+        
 
 cat_train = pd.read_csv('catalog/avspeech_train.csv')
+cat_train.columns = ['link', 'start_time', 'end_time', 'x','y']
+
 #cat_test = pd.read_csv('catalog/avspeech_test.csv')
 
 # create 80000-90000 audios data from 290K
 avh.mkdir('audio_train')
-m_audio('audio_train','audio_train',cat_train,80000,80500)
+# Multiprocess
+processes = []
+n_process = 10
+sample_per_process = 2000
+
+
+for i in range(n_process):
+    proc = Process(target=m_audio, kwargs={'loc':'audio_train', 'name': 'audio_train','cat':cat_train, 'start_idx':i*sample_per_process, 'end_idx':(i+1)*sample_per_process})
+    processes.append(proc)
+    proc.start()
+    print("Start process: ", i)
+for proc in processes:
+    proc.join()
+
+
+
+#m_audio('audio_train','audio_train',cat_train,80000,80500)
 
